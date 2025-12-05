@@ -1,0 +1,2 @@
+__pycache__/ *.pvd *.vtu *.xdmf *.xml *.log results/ *.png *.npy *.npz
+
