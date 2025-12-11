@@ -1,16 +1,10 @@
-import numpy as np
-from dolfin import * #imports all fuctions within dolfin
-import ufl
-from ufl import exp
-import matplotlib.pyplot as plt
-import random
-from matplotlib.tri import Triangulation
-from scipy.optimize import minimize
-import matplotlib.pyplot as plt
-from matplotlib.tri import Triangulation
-from matplotlib.ticker import FormatStrFormatter
-from copy import deepcopy
+#plotsnew
+# plots.py
 
+import matplotlib.pyplot as plt
+from matplotlib.tri import Triangulation
+import numpy as np
+from copy import deepcopy
 
 def plot_velocity_field(w, turbine_positions, sigma, show_plot=True):
     if not show_plot:
@@ -29,21 +23,19 @@ def plot_velocity_field(w, turbine_positions, sigma, show_plot=True):
 
     plt.figure(figsize=(8, 6))
     c = plt.tricontourf(triang, U, levels=50, cmap="viridis")
-    cb = plt.colorbar(c, label="|u| [m/s]")
+    plt.colorbar(c, label="|u| [m/s]")
 
-    # Force 2 decimal places on colorbar ticks
-    cb.ax.yaxis.set_major_formatter(FormatStrFormatter('%.2f'))
-
-    # Fix y-axis ticks EXACTLY - force specific locations
+    # Fix y-axis ticks to 2 decimal places
     ax = plt.gca()
-    ax.set_yticks([0, 100, 200, 300, 400])
-    ax.set_yticklabels(['0.00', '100.00', '200.00', '300.00', '400.00'])
+    ax.ticklabel_format(axis='y', style='plain')
+    ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'{x:.2f}'))
 
-    # Turbines
     for (x_i, y_i) in turbine_positions:
         plt.plot(x_i, y_i, "wo", markersize=6, markeredgecolor="k", zorder=5)
-        circle = plt.Circle((x_i, y_i), 2 * sigma, color="w", linestyle="--", 
-                           fill=False, linewidth=1, zorder=4)
+        circle = plt.Circle(
+            (x_i, y_i), 2 * sigma,
+            color="w", linestyle="--", fill=False, linewidth=1, zorder=4
+        )
         plt.gca().add_artist(circle)
 
     plt.xlabel("x [m]")
@@ -66,30 +58,29 @@ def compute_power_field_plot(C_T, rho, A_T, w, turbine_positions, sigma, show_pl
     uy = velocity.sub(1).compute_vertex_values(mesh)
     U = (ux**2 + uy**2)**0.5
 
-    # Scale power density by 1e-6 for MW/m² display
-    power_density_raw = 0.5 * rho * C_T * A_T * U**3
-    power_density = power_density_raw / 1e6  # Convert to MW/m²
+    power_density = 0.5 * rho * C_T * A_T * U**3
 
     triang = Triangulation(coords[:, 0], coords[:, 1], cells)
 
     plt.figure(figsize=(8, 6))
     c = plt.tricontourf(triang, power_density, levels=50, cmap="plasma")
-    cb = plt.colorbar(c, label="Power density [MW/m²]")
+    plt.colorbar(c, label="Power density [W/m²]")
 
-    # Force 2 decimal places on colorbar ticks
-    cb.ax.yaxis.set_major_formatter(FormatStrFormatter('%.2f'))
-
-    # Fix y-axis ticks
+    # Fix y-axis ticks to 2 decimal places
     ax = plt.gca()
-    ax.set_yticks([0, 100, 200, 300, 400])
-    ax.set_yticklabels(['0.00', '100.00', '200.00', '300.00', '400.00'])
+    ax.ticklabel_format(axis='y', style='plain')
+    ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'{x:.2f}'))
 
-    # Mesh and turbines
+    # draw mesh as wireframe
     plt.triplot(triang, color="gray", linewidth=0.1, alpha=0.3)
+
+    # turbines
     for (x_i, y_i) in turbine_positions:
         plt.plot(x_i, y_i, "wo", markersize=6, markeredgecolor="k", zorder=5)
-        circle = plt.Circle((x_i, y_i), 2 * sigma, color="w", linestyle="--", 
-                           fill=False, linewidth=1, zorder=4)
+        circle = plt.Circle(
+            (x_i, y_i), 2 * sigma,
+            color="w", linestyle="--", fill=False, linewidth=1, zorder=4
+        )
         plt.gca().add_artist(circle)
 
     plt.xlabel("x [m]")
@@ -97,3 +88,4 @@ def compute_power_field_plot(C_T, rho, A_T, w, turbine_positions, sigma, show_pl
     plt.title("Local power density and turbine locations")
     plt.tight_layout()
     plt.show()
+

@@ -33,7 +33,9 @@ def place_turbines_random(Lx, Ly, n_turbines, sigma, min_spacing):
 
 
 
-def plot_turbine_layout(mesh, turbine_positions, Lx, Ly, sigma):
+def plot_turbine_layout(mesh, turbine_positions, Lx, Ly, sigma, showplot):
+    if not showplot:
+        return 
     plt.figure(figsize=(7, 5))
     fe_plot(mesh, linewidth=0.2, color="lightgray")
 

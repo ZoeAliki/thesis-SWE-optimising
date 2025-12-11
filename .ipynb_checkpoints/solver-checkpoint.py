@@ -8,7 +8,7 @@ from dolfin import (
     Constant, assign, plot, interpolate,
 )
 
-def setup_swe_problem(Lx, Ly, Nx, Ny, U_inflow):
+def setup_swe_problem(Lx, Ly, Nx, Ny, U_inflow, showplot):
     """
     Create mesh, mixed Taylor–Hood function space, initial condition, and
     boundary expressions for the shallow-water problem.
@@ -50,6 +50,10 @@ def setup_swe_problem(Lx, Ly, Nx, Ny, U_inflow):
     # --- Mesh visualization (optional) ---
     print(f"Success! Initialized u_init with U_inflow = {U_inflow} m/s "
           f"on a {Nx}x{Ny} mesh.")
+
+    if not showplot:
+        return mesh, W, w, u, eta, v, q, inflow, outflow, walls
+        
     plt.figure(figsize=(6, 5))
     plot(mesh)
     plt.title("Computational mesh verification")
@@ -113,3 +117,214 @@ def solve_tidal_flow_velocities(turbine_positions, w, W, mesh, bcs, rho, depth, 
 #def objective_function1(turbine_positions, velocity_function, rho, C_T, A_T):
 #    turbine_power, velocity = solve_tidal_flow_velocities(turbine_positions, w, mesh, bcs, rho, depth, nu, cb, g, C_T, A_T, sigma)
 #    return turbine_power, velocity
+
+def setup_boundary_markers_and_bcs(mesh, W, Lx, U_inflow):
+    """
+    Define subdomain classes, mark boundaries with MeshFunction, and create DirichletBCs.
+    
+    Returns
+    -------
+    boundary_markers : MeshFunction
+    bcs : list of DirichletBC
+    """
+    from dolfin import SubDomain, MeshFunction, DirichletBC, Constant, near
+    
+    # --- Boundary definition and marking ---
+    class InletBoundary(SubDomain):
+        def inside(self, x, on_boundary):
+            return on_boundary and near(x[0], 0.0)
+
+    class OutflowBoundary(SubDomain):
+        def inside(self, x, on_boundary):
+            return on_boundary and near(x[0], Lx)
+
+    # Create MeshFunction for boundary markers
+    boundary_markers = MeshFunction("size_t", mesh, mesh.topology().dim() - 1, 0)
+
+    # Mark boundaries
+    inlet = InletBoundary()
+    inlet.mark(boundary_markers, 1)
+    
+    outflow = OutflowBoundary()
+    outflow.mark(boundary_markers, 2)
+
+    # --- Inflow velocity BC ---
+    inflow_expr = Constant((U_inflow, 0.0))
+    bc_inflow = DirichletBC(W.sub(0), inflow_expr, boundary_markers, 1)
+
+    bcs = [bc_inflow]
+
+    print(f"✅ Boundary markers created and BCs applied:")
+    print(f"   - Inlet (ID=1): {U_inflow} m/s")
+    print(f"   - Outflow (ID=2): marked for future use")
+    
+    return boundary_markers, bcs
+
+import numpy as np
+from copy import deepcopy
+
+from dolfin import (
+    Constant, SpatialCoordinate, FacetNormal,
+    TestFunctions, split, grad, nabla_grad, div, inner, dot, sqrt,
+    exp, dx, solve,
+)
+
+# You probably already import W, depth, nu, cb, g somewhere else in your module
+# or pass them in as arguments (see below).
+
+
+def solve_tidal_flow_velocities(
+    turbine_positions,
+    w,
+    W,
+    mesh,
+    bcs,
+    rho,
+    depth,
+    nu,
+    cb,
+    g,
+    C_T,
+    A_T,
+    sigma,
+):
+    """
+    Solve the nonlinear shallow-water / tidal flow problem with turbine forcing.
+
+    Parameters
+    ----------
+    turbine_positions : list of (x, y)
+        Turbine center coordinates.
+    w : dolfin.Function
+        Mixed function [u, eta] (will be updated in-place).
+    W : dolfin.FunctionSpace
+        Mixed Taylor–Hood function space corresponding to w.
+    mesh : dolfin.Mesh
+        Computational mesh.
+    bcs : list of dolfin.DirichletBC
+        Boundary conditions for the solve.
+    rho, depth, nu, cb, g, C_T, A_T, sigma : floats
+        Physical and turbine parameters.
+
+    Returns
+    -------
+    total_power : float
+        Total extracted power [W].
+    velocity : dolfin.Function
+        Velocity field (vector Function) after convergence.
+    """
+    # Trial and test functions
+    u_, eta_ = split(w)          # unknowns: velocity, free-surface
+    v_, q_ = TestFunctions(W)    # test functions
+
+    n = FacetNormal(mesh)
+    H = depth + eta_             # total water depth
+    f_u = Constant((0.0, 0.0))   # no internal body forcing
+
+    # --- Turbine-induced momentum sink coefficient field ------------------
+    x, y = SpatialCoordinate(mesh)
+
+    Ct_field = 0
+    for (x_i, y_i) in turbine_positions:
+        Ct_field += (
+            0.5 * C_T * A_T / (2.0 * np.pi * sigma**2)
+            * exp(-((x - x_i)**2 + (y - y_i)**2) / (2.0 * sigma**2))
+        )
+
+    # --- Nonlinear residual form F ----------------------------------------
+    F = (
+        inner(nu * grad(u_), grad(v_)) * dx                            # viscosity
+        + inner(dot(u_, nabla_grad(u_)), v_) * dx                      # advection
+        - g * div(H * v_) * eta_ * dx                                  # free-surface coupling
+        + (cb / H) * inner(u_ * sqrt(dot(u_, u_)), v_) * dx           # bottom friction
+    )
+
+    # Turbine momentum sink using spatially varying field
+    F += (Ct_field / H) * inner(u_ * sqrt(dot(u_, u_)), v_) * dx
+
+    # Continuity and body force term
+    F += H * div(u_) * q_ * dx - inner(f_u, v_) * dx
+
+    # --- Solve nonlinear problem with Newton's method ---------------------
+    solve(
+        F == 0,
+        w,
+        bcs,
+        solver_parameters={
+            "newton_solver": {
+                "linear_solver": "mumps",
+                "absolute_tolerance": 1e-8,
+                "relative_tolerance": 1e-7,
+                "maximum_iterations": 30,
+                "relaxation_parameter": 1.0,
+            }
+        },
+    )
+
+    # --- Compute turbine power --------------------------------------------
+    from turbines import compute_turbine_power  # or import at top of file
+
+    velocity = w.sub(0, deepcopy=True)
+    turbine_powers, _ = compute_turbine_power(
+        velocity, turbine_positions, rho, C_T, A_T
+    )
+    total_power = float(np.sum(turbine_powers))
+    print(f"The total power is {total_power/1e3:.1f} kW")
+
+    return total_power, velocity
+
+
+def objective_function1(
+    turbine_positions_flat,
+    w,
+    W,
+    mesh,
+    bcs,
+    rho,
+    depth,
+    nu,
+    cb,
+    g,
+    C_T,
+    A_T,
+    sigma,
+):
+    """
+    Objective wrapper for optimization: take a flat parameter vector of turbine
+    positions, reshape to (x, y) list, call the PDE solver, and return total power.
+
+    Parameters
+    ----------
+    turbine_positions_flat : 1D array-like, length 2*n_turbines
+        [x0, y0, x1, y1, ..., x_{N-1}, y_{N-1}]
+    (other parameters as in solve_tidal_flow_velocities)
+
+    Returns
+    -------
+    total_power : float
+    velocity : dolfin.Function
+    """
+    # Convert flat vector -> list of (x, y) pairs
+    params = np.asarray(turbine_positions_flat, dtype=float)
+    assert params.size % 2 == 0, "turbine_positions_flat must have even length"
+    n_turbines = params.size // 2
+    turbine_positions = [
+        (params[2 * i], params[2 * i + 1]) for i in range(n_turbines)
+    ]
+
+    total_power, velocity = solve_tidal_flow_velocities(
+        turbine_positions,
+        w,
+        W,
+        mesh,
+        bcs,
+        rho,
+        depth,
+        nu,
+        cb,
+        g,
+        C_T,
+        A_T,
+        sigma,
+    )
+    return total_power, velocity
