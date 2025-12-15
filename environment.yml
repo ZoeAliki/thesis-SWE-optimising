@@ -1,0 +1,13 @@
+name: fenicsproject
+dependencies:
+  - python=3.10
+  - fenics
+  - mpi4py
+  - numpy
+  - scipy
+  - matplotlib
+  - seaborn
+  - jupyterlab
+
+conda env create -f environment.yml
+conda activate fenicsproject

@@ -8,6 +8,7 @@ from dolfin import (
     Constant, assign, plot, interpolate,
 )
 
+
 def setup_swe_problem(Lx, Ly, Nx, Ny, U_inflow, showplot):
     """
     Create mesh, mixed Taylor–Hood function space, initial condition, and
