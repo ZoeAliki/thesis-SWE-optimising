@@ -97,3 +97,35 @@ def compute_power_field_plot(C_T, rho, A_T, w, turbine_positions, sigma, show_pl
     plt.title("Local power density and turbine locations")
     plt.tight_layout()
     plt.show()
+
+import matplotlib.pyplot as plt
+from dolfin import plot
+
+def compare_layouts(mesh, Lx, Ly, initial_positions, optimised_positions, sigma):
+    """
+    Plot initial and optimised turbine layouts on the same figure.
+    """
+    plt.figure(figsize=(7, 5))
+    #plot(mesh)  # underlying mesh
+    plt.scatter(
+        [p[0] for p in initial_positions],
+        [p[1] for p in initial_positions],
+        c='gray', marker='o', s=60,
+        label='Initial layout'
+    )
+    plt.scatter(
+        [p[0] for p in optimised_positions],
+        [p[1] for p in optimised_positions],
+        c='red', marker='x', s=80,
+        label='Optimised layout'
+    )
+
+    plt.xlabel('x [m]')
+    plt.ylabel('y [m]')
+    plt.title('Turbine layouts: initial vs optimised')
+    plt.legend(loc='best')
+    plt.xlim(0, Lx)
+    plt.ylim(0, Ly)
+    plt.axis('equal')
+    plt.tight_layout()
+    plt.show()

@@ -263,7 +263,7 @@ def solve_tidal_flow_velocities(
     )
 
     # --- Compute turbine power --------------------------------------------
-    from turbines import compute_turbine_power  # or import at top of file
+    from src.turbines import compute_turbine_power  # or import at top of file
 
     velocity = w.sub(0, deepcopy=True)
     turbine_powers, _ = compute_turbine_power(
