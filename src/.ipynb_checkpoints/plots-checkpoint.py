@@ -12,7 +12,7 @@ from matplotlib.ticker import FormatStrFormatter
 from copy import deepcopy
 
 
-def plot_velocity_field(w, turbine_positions, sigma, show_plot=True):
+def plot_velocity_field(w, turbine_positions, sigma, Lx, Ly, show_plot=True):
     if not show_plot:
         return
         
@@ -48,12 +48,14 @@ def plot_velocity_field(w, turbine_positions, sigma, show_plot=True):
 
     plt.xlabel("x [m]")
     plt.ylabel("y [m]")
+    plt.xlim(0, Lx)
+    plt.ylim(0, Ly)
     plt.title("Velocity field with turbine locations")
     plt.tight_layout()
     plt.show()
 
 
-def compute_power_field_plot(C_T, rho, A_T, w, turbine_positions, sigma, show_plot=True):
+def compute_power_field_plot(C_T, rho, A_T, w, turbine_positions, sigma, Lx, Ly, show_plot=True):
     if not show_plot:
         return
         
@@ -94,6 +96,8 @@ def compute_power_field_plot(C_T, rho, A_T, w, turbine_positions, sigma, show_pl
 
     plt.xlabel("x [m]")
     plt.ylabel("y [m]")
+    plt.xlim(0, Lx)
+    plt.ylim(0, Ly)
     plt.title("Local power density and turbine locations")
     plt.tight_layout()
     plt.show()
@@ -124,8 +128,8 @@ def compare_layouts(mesh, Lx, Ly, initial_positions, optimised_positions, sigma)
     plt.ylabel('y [m]')
     plt.title('Turbine layouts: initial vs optimised')
     plt.legend(loc='best')
-    #plt.xlim(0, Lx)
-    #plt.ylim(0, Ly)
+    plt.xlim(0, Lx)
+    plt.ylim(0, Ly)
     plt.axis('equal')
     #plt.tight_layout()
     plt.show()
