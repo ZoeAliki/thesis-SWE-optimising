@@ -1,9 +1,11 @@
+# ------------------------------------------
+# set_up_bcs.py — safe version for adjoint use
+# ------------------------------------------
 import dolfin as dlf
-import dolfin_adjoint as adj
 
 def setup_boundary_markers_and_bcs(mesh, W, Lx, Ly, U_inflow):
     """
-    Create boundary markers and apply Dirichlet BCs (inlet & no-slip walls).
+    Create boundary markers and apply Dirichlet BCs (inlet & no‑slip walls).
     """
 
     # --- Define boundary subdomains ---
@@ -25,15 +27,15 @@ def setup_boundary_markers_and_bcs(mesh, W, Lx, Ly, U_inflow):
     outlet = OutflowBoundary(); outlet.mark(boundary_markers, 2)
     walls  = WallBoundary();   walls.mark(boundary_markers, 3)
 
-    # --- Define velocity BCs ---
+    # --- Define velocity BC (inlet only) ---
     inflow_expr = dlf.Constant((U_inflow, 0.0))
-    bc_inflow   = adj.DirichletBC(W.sub(0), inflow_expr, boundary_markers, 1)
+    bc_inflow = dlf.DirichletBC(W.sub(0), inflow_expr, boundary_markers, 1)
 
     bcs = [bc_inflow]
 
     print(f"✅ Boundary markers created and BCs applied:")
-    print(f"   - Inlet  (ID=1): inflow velocity = {U_inflow} m/s")
+    print(f"   - Inlet  (ID=1): inflow velocity = {U_inflow:.2f} m/s")
     print( "   - Outlet (ID=2): open boundary (no Dirichlet condition)")
-    print( "   - Walls  (ID=3): free‑slip (no Dirichlet BC)")
+    print( "   - Walls  (ID=3): free‑slip (no Dirichlet BC)\n")
 
     return boundary_markers, bcs
