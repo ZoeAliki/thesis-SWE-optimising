@@ -1,13 +1,27 @@
 name: fenicsproject
+channels:
+  - conda-forge
+  - defaults
+
 dependencies:
   - python=3.10
-  - fenics
+  - fenics    # from conda-forge, version 2019.2.0.dev*
   - mpi4py
   - numpy
   - scipy
   - matplotlib
   - seaborn
   - jupyterlab
+  - pip
 
-conda env create -f environment.yml
-conda activate fenicsproject
+  # Optional but recommended for smoother installs and debugging
+  - mshr        # FEniCS geometry generation tool
+  - tqdm        # progress bars
+  - pandas
+  - ipywidgets  # Jupyter widgets support
+
+  # pip-based installs — must come last
+  - pip:
+      - git+https://github.com/dolfin-adjoint/pyadjoint.git
+      - git+https://github.com/dolfin-adjoint/dolfin-adjoint.git
+
