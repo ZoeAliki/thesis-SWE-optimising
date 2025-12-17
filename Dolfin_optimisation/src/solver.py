@@ -231,7 +231,7 @@ from dolfin import (
 # or pass them in as arguments (see below).
 
 
-def solve_tidal_flow_velocities(
+def solve_tidal_flow_velocities2(
     turbine_positions,
     w,
     W,
@@ -370,7 +370,7 @@ def objective_function1(
         (params[2 * i], params[2 * i + 1]) for i in range(n_turbines)
     ]
 
-    total_power, velocity = solve_tidal_flow_velocities(
+    total_power, velocity = solve_tidal_flow_velocities2(
         turbine_positions,
         w,
         W,
