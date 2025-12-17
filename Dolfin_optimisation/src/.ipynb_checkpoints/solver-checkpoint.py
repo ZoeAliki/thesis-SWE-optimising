@@ -103,10 +103,10 @@ def solve_tidal_flow_velocities(turbine_positions, w, W, mesh, bcs, rho, depth, 
 # Solve nonlinear problem with Newton's method
     solve(F == 0, w, bcs,
           solver_parameters={"newton_solver": {
-              "linear_solver": "mumps",  # or "petsc" with good preconditioner
+              "linear_solver": "mumps",  
               "absolute_tolerance": 1e-8,
               "relative_tolerance": 1e-7,
-              "maximum_iterations": 30,
+              "maximum_iterations": 20,
               "relaxation_parameter": 1.0
           }})
 
@@ -150,6 +150,10 @@ def solve_tidal_flow_velocities_adjoint(turbine_positions, w, W, mesh, bcs, rho,
     Cd = Function(V_ctrl, name="Cd")
     Cd.assign(Constant(0.0025))
 
+    J_form = 0.5 * rho * inner(u_, u_)**1.5 * dx  # power‑like field
+    J = assemble(J_form)
+
+
     J_F = derivative(F, w)
     problem = NonlinearVariationalProblem(F, w, bcs, J=J_F)
     solver = NonlinearVariationalSolver(problem)
@@ -159,16 +163,6 @@ def solve_tidal_flow_velocities_adjoint(turbine_positions, w, W, mesh, bcs, rho,
     solver.parameters["newton_solver"]["maximum_iterations"] = 30
     solver.solve()
 
-
-# Solve nonlinear problem with Newton's method
-   # solve(F == 0, w, bcs,
-    #      solver_parameters={"newton_solver": {
-     #         "linear_solver": "mumps",  # or "petsc" with good preconditioner
-      #        "absolute_tolerance": 1e-8,
-       #       "relative_tolerance": 1e-7,
-       #       "maximum_iterations": 30,
-        #      "relaxation_parameter": 1.0
-        #  }})
 
 #compute power 
     velocity = w.sub(0, deepcopy=True)
