@@ -13,20 +13,6 @@ import numpy as np
 
 
 def setup_swe_problem(Lx, Ly, Nx, Ny, U_inflow, showplot):
-    """
-    Create mesh, mixed Taylor–Hood function space, initial condition, and
-    boundary expressions for the shallow-water problem.
-
-    Returns
-    -------
-    mesh : dolfin.Mesh
-    W    : dolfin.FunctionSpace
-    w    : dolfin.Function   (mixed [u, eta])
-    u, eta : UFL components of w
-    v, q   : test functions
-    inflow, outflow, walls : str
-        Boundary condition expression strings.
-    """
     # --- Domain and mesh setup ---
     mesh = RectangleMesh(Point(0.0, 0.0), Point(Lx, Ly), Nx, Ny)
 
@@ -246,31 +232,7 @@ def solve_tidal_flow_velocities2(
     A_T,
     sigma,
 ):
-    """
-    Solve the nonlinear shallow-water / tidal flow problem with turbine forcing.
-
-    Parameters
-    ----------
-    turbine_positions : list of (x, y)
-        Turbine center coordinates.
-    w : dolfin.Function
-        Mixed function [u, eta] (will be updated in-place).
-    W : dolfin.FunctionSpace
-        Mixed Taylor–Hood function space corresponding to w.
-    mesh : dolfin.Mesh
-        Computational mesh.
-    bcs : list of dolfin.DirichletBC
-        Boundary conditions for the solve.
-    rho, depth, nu, cb, g, C_T, A_T, sigma : floats
-        Physical and turbine parameters.
-
-    Returns
-    -------
-    total_power : float
-        Total extracted power [W].
-    velocity : dolfin.Function
-        Velocity field (vector Function) after convergence.
-    """
+    
     # Trial and test functions
     u_, eta_ = split(w)          # unknowns: velocity, free-surface
     v_, q_ = TestFunctions(W)    # test functions
