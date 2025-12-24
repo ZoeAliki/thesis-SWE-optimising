@@ -42,7 +42,7 @@ def plot_velocity_field(w, turbine_positions, sigma, Lx, Ly, show_plot=True):
     # Turbines
     for (x_i, y_i) in turbine_positions:
         plt.plot(x_i, y_i, "wo", markersize=6, markeredgecolor="k", zorder=5)
-        circle = plt.Circle((x_i, y_i), 2 * sigma, color="w", linestyle="--", 
+        circle = plt.Circle((x_i, y_i), sigma, color="w", linestyle="--", 
                            fill=False, linewidth=1, zorder=4)
         plt.gca().add_artist(circle)
 

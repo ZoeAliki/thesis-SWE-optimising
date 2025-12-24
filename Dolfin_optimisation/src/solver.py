@@ -9,7 +9,10 @@ from dolfin import (
 )
 from dolfin_adjoint import *
 import numpy as np
-
+ #from src.turbines import compute_turbine_power  # or import at top of file
+from Dolfin_optimisation.src.turbines import (
+    place_turbines_random, compute_turbine_power, summarize_turbine_power, plot_turbine_layout
+)
 
 
 def setup_swe_problem(Lx, Ly, Nx, Ny, U_inflow, showplot):
@@ -282,7 +285,7 @@ def solve_tidal_flow_velocities2(
     )
 
     # --- Compute turbine power --------------------------------------------
-    from src.turbines import compute_turbine_power  # or import at top of file
+   
 
     velocity = w.sub(0, deepcopy=True)
     turbine_powers, _ = compute_turbine_power(
