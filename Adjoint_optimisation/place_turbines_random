@@ -1,0 +1,33 @@
+import numpy as np
+
+{ "workspaceRoot": "\\\\wsl.localhost\\Ubuntu\\home\\zabreedveld\\thesis-SWE-optimising", "codeSnippet": "import sys, os\nimport importlib\n\nprint('importlib module:', importlib)\nprint('has util:', hasattr(importlib, 'util'))\nprint('__file__:', getattr(importlib, '__file__', None))\nprint('\\nCurrent working dir:', os.getcwd())\nprint('Files here:')\nprint('\\n'.join(os.listdir('.')))\n\n# try pip list\ntry:\n    import subprocess\n    out = subprocess.check_output([sys.executable, '-m', 'pip', 'freeze'], stderr=subprocess.STDOUT, text=True)\n    print('\\npip freeze sample (first 50 lines):')\n    print('\\n'.join(out.splitlines()[:50]))\nexcept Exception as e:\n    print('\\nCould not run pip freeze:', e)\n", "workingDirectory": "\\\\wsl.localhost\\Ubuntu\\home\\zabreedveld\\thesis-SWE-optimising" }
+import matplotlib.pyplot as plt
+from matplotlib.patches import Circle
+
+
+
+def place_turbines_random(Lx, Ly, n_turbines, min_spacing, D, type, seed=None, margin=None, max_attempts=20):
+    if seed is not None:
+        np.random.seed(seed)
+
+    if margin is None:
+        margin = max(min_spacing / 2, D)
+
+    positions = []
+    attempts = 0
+
+
+    while len(positions) < n_turbines and attempts < max_attempts:
+        x = np.random.uniform(margin, Lx - margin)
+        y = np.random.uniform(margin, Ly - margin)
+        new_pos = np.array([x, y])
+
+        if all(np.linalg.norm(new_pos - np.array(pos)) >= min_spacing for pos in positions):
+            positions.append(new_pos)
+
+        attempts += 1
+
+    if len(positions) < n_turbines:
+        raise RuntimeError("Failed to place all turbines with the given constraints.")
+
+    return np.array(positions)
