@@ -2,8 +2,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
 
-
-
 def place_turbines_random(Lx, Ly, n_turbines, min_spacing, D, type, seed=None, margin=None, max_attempts=20):
     if seed is not None:
         np.random.seed(seed)
