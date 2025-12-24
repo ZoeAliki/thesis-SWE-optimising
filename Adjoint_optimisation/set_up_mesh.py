@@ -2,10 +2,6 @@ import matplotlib.pyplot as plt
 import dolfin as dlf
 
 def mesh_set_up(Lx, Ly, Nx, Ny, showplot):
-    """
-    Build rectangular mesh and mixed P2–P1 function space compatible
-    with FEniCS 2019 and dolfin‑adjoint.
-    """
     mesh_dolfin = dlf.RectangleMesh(dlf.Point(0.0, 0.0),
                                     dlf.Point(Lx, Ly),
                                     Nx, Ny)
