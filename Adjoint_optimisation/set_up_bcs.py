@@ -45,7 +45,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
 
-def place_turbines_random2(mesh, Lx, Ly, n_turbines, min_spacing, D, plot=True, show = True, seed=None, margin=None, max_attempts=100):
+def place_turbines_random2(mesh, Lx, Ly, n_turbines, min_spacing, D, seed=None, margin=None, max_attempts=100):
 
     if seed is not None:
         np.random.seed(seed)
@@ -77,7 +77,8 @@ def place_turbines_random2(mesh, Lx, Ly, n_turbines, min_spacing, D, plot=True, 
 
     initial_positions = np.array(positions)
 
-
+    show = False
+    
     if show:
         print("The initial turbine positions are:")
         for i, pos in enumerate(initial_positions):
@@ -85,11 +86,16 @@ def place_turbines_random2(mesh, Lx, Ly, n_turbines, min_spacing, D, plot=True, 
     else:
         print("Turbine coordinates display not requested.")
 
+    initial_positions2 = np.array(positions)
+
+    plot = True
+
     if plot:
         plt.figure()    
         plt.triplot(mesh.coordinates()[:,0], mesh.coordinates()[:,1], mesh.cells(),  alpha=0.1)
-        for pos in initial_positions:
-            circle = plt.Circle((pos[0], pos[1]), D/2, color='r', alpha=0.5)
+        for pos in initial_positions2:
+            circle = plt.Circle((pos[0], pos[1]), D*2, color='r', alpha=0.5)
+
         plt.gca().add_artist(circle)            
         plt.xlim(0, Lx)
         plt.ylim(0, Ly) 
@@ -113,7 +119,6 @@ def place_turbines_rectangular_equal_spacing(mesh, Lx, Ly, n_turbines,
     if margin is None:
         margin = max(min_spacing / 2.0, D)
 
-    # Normalize plot flag
 
     avail_x = Lx - 2.0 * margin
     avail_y = Ly - 2.0 * margin
