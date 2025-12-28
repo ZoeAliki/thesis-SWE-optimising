@@ -16,15 +16,16 @@ def mesh_set_up(Lx, Ly, Nx, Ny, showplot):
     u, eta = dlf.split(w)
     v, q   = dlf.TestFunctions(W)   # ✅ returns vector and scalar arguments
 
-    print("W type:", type(W))
-    print("v type:", type(v))
-    print("q type:", type(q))
-    print("❤️ Mesh and mixed space initialised correctly (FEniCS 2019)")
+    #print("W type:", type(W))
+    #print("v type:", type(v))
+    #print("q type:", type(q))
+    print("Mesh and mixed space initialised.")
+
 
     if showplot:
         plt.figure(figsize=(6,5))
         dlf.plot(mesh_dolfin)
-        plt.title("Computational mesh verification")
+        plt.title("Computational mesh")
         plt.xlabel("x [m]")
         plt.ylabel("y [m]")
         plt.tight_layout()
