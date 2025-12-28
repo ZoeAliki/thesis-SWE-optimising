@@ -88,7 +88,7 @@ def place_turbines_random2(mesh, Lx, Ly, n_turbines, min_spacing, D, type, seed=
 
     return np.array(positions)
 
-def place_turbines_rectangular(mesh, Lx, Ly, xn, yn, n_turbines, min_spacing, D, type, seed=None, margin=5*D):
+def place_turbines_rectangular(mesh, Lx, Ly, xn, yn, n_turbines, min_spacing, D, type, seed=None,):
 
     # Calculate number of turbines in x and y directions
     x = np.linspace(margin, Lx - margin, xn)
@@ -118,8 +118,13 @@ def place_turbines_rectangular(mesh, Lx, Ly, xn, yn, n_turbines, min_spacing, D,
 
     return np.array(positions)
 
-def place_turbines_rectangular2(mesh, Lx, Ly, xn, yn, n_turbines, min_spacing, D, type, seed=None, margin=5*D):
+def place_turbines_rectangular2(mesh, Lx, Ly, xn, yn, n_turbines, min_spacing, D, type, seed=None, margin=None):
+    
     # Calculate number of turbines in x and y directions
+
+    if margin is None:
+        margin = max(min_spacing / 2, D)
+
     x = np.linspace(margin, Lx - margin, xn)
     y = np.linspace(margin, Ly - margin, yn)
     xv, yv = np.meshgrid(x, y)
