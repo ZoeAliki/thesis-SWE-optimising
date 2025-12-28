@@ -2,6 +2,9 @@
 # set_up_bcs.py — safe version for adjoint use
 # ------------------------------------------
 import dolfin as dlf
+import numpy as np
+import matplotlib.pyplot as plt
+
 
 def setup_boundary_markers_and_bcs(mesh, W, Lx, Ly, U_inflow):
 
@@ -42,16 +45,17 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
 
-def place_turbines_random2(mesh, Lx, Ly, n_turbines, min_spacing, D, type, seed=None, margin=None, max_attempts=20):
+def place_turbines_random2(mesh, Lx, Ly, n_turbines, min_spacing, D, plot=True, show = True, seed=None, margin=None, max_attempts=100):
+
     if seed is not None:
         np.random.seed(seed)
+
 
     if margin is None:
         margin = max(min_spacing / 2, D)
 
     positions = []
     attempts = 0
-
 
     while len(positions) < n_turbines and attempts < max_attempts:
         x = np.random.uniform(margin, Lx - margin)
@@ -67,83 +71,109 @@ def place_turbines_random2(mesh, Lx, Ly, n_turbines, min_spacing, D, type, seed=
     if len(positions) < n_turbines:
         raise RuntimeError("Failed to place all turbines with the given constraints.")
     
-    initial_positions = np.array(positions)
-    
-    
-        #plotting initial turbine positions
-    plt.figure()    
-    plt.triplot(mesh.coordinates()[:,0], mesh.coordinates()[:,1], mesh.cells())
-    for pos in initial_positions:
-        circle = plt.Circle((pos[0], pos[1]), D, color='r', alpha=0.5)
-
-        plt.gca().add_artist(circle)            
-    plt.xlim(0, Lx)
-    plt.ylim(0, Ly) 
-    plt.title('Initial Turbine Positions')
-    plt.xlabel('x [m]')
-    plt.ylabel('y [m]')
-    plt.gca().set_aspect('equal', adjustable='box')
-    plt.show()
-
-
-    return np.array(positions)
-
-def place_turbines_rectangular(mesh, Lx, Ly, xn, yn, n_turbines, min_spacing, D, type, seed=None,):
-
-    # Calculate number of turbines in x and y directions
-    x = np.linspace(margin, Lx - margin, xn)
-    y = np.linspace(margin, Ly - margin, yn)
-    xv, yv = np.meshgrid(x, y)
-    positions = np.column_stack([xv.ravel(), yv.ravel()])[:n_turbines]
+    else: 
+        print("Turbines placed successfully.")
 
 
     initial_positions = np.array(positions)
 
-    
-        #plotting initial turbine positions
-    plt.figure()    
-    plt.triplot(mesh.coordinates()[:,0], mesh.coordinates()[:,1], mesh.cells())
-    for pos in initial_positions:
-        circle = plt.Circle((pos[0], pos[1]), D, color='r', alpha=0.5)
 
+    if show:
+        print("The initial turbine positions are:")
+        for i, pos in enumerate(initial_positions):
+            print(f" Turbine {i+1}: x = {pos[0]:.2f} m, y = {pos[1]:.2f} m")
+    else:
+        print("Turbine coordinates display not requested.")
+
+    if plot:
+        plt.figure()    
+        plt.triplot(mesh.coordinates()[:,0], mesh.coordinates()[:,1], mesh.cells(),  alpha=0.1)
+        for pos in initial_positions:
+            circle = plt.Circle((pos[0], pos[1]), D/2, color='r', alpha=0.5)
         plt.gca().add_artist(circle)            
-    plt.xlim(0, Lx)
-    plt.ylim(0, Ly) 
-    plt.title('Initial Turbine Positions (Rectangular Grid)')
-    plt.xlabel('x [m]')
-    plt.ylabel('y [m]')
-    plt.gca().set_aspect('equal', adjustable='box')
-    plt.show()
-
+        plt.xlim(0, Lx)
+        plt.ylim(0, Ly) 
+        plt.title('Initial Turbine Positions')
+        plt.xlabel('x [m]')
+        plt.ylabel('y [m]')
+        plt.gca().set_aspect('equal', adjustable='box')
+        plt.show()
+        plt.close()
 
     return np.array(positions)
 
-def place_turbines_rectangular2(mesh, Lx, Ly, xn, yn, n_turbines, min_spacing, D, type, seed=None, margin=None):
-    
-    # Calculate number of turbines in x and y directions
 
+
+import numpy as np
+
+def place_turbines_rectangular_equal_spacing(mesh, Lx, Ly, n_turbines,
+                                             min_spacing, D,  plot=True,
+                                             nx=None, ny=None,
+                                             margin=None):
     if margin is None:
-        margin = max(min_spacing / 2, D)
+        margin = max(min_spacing / 2.0, D)
 
-    x = np.linspace(margin, Lx - margin, xn)
-    y = np.linspace(margin, Ly - margin, yn)
-    xv, yv = np.meshgrid(x, y)
-    positions = np.column_stack([xv.ravel(), yv.ravel()])[:n_turbines]
+    # Normalize plot flag
 
-    initial_positions = positions.copy()  # Use copy() to avoid modifying original
+    avail_x = Lx - 2.0 * margin
+    avail_y = Ly - 2.0 * margin
+    if avail_x <= 0 or avail_y <= 0:
+        raise ValueError("Domain too small for margins")
 
-    # Plotting initial turbine positions
-    plt.figure()
-    plt.triplot(mesh.coordinates()[:,0], mesh.coordinates()[:,1], mesh.cells())
-    for pos in initial_positions:
-        circle = plt.Circle((pos[0], pos[1]), D/2, color='r', alpha=0.5)  # D/2 = radius
-        plt.gca().add_artist(circle)
-    plt.xlim(0, Lx)
-    plt.ylim(0, Ly)
-    plt.title('Initial Turbine Positions (Rectangular Grid)')
-    plt.xlabel('x [m]')
-    plt.ylabel('y [m]')
-    plt.gca().set_aspect('equal', adjustable='box')
-    plt.show()
+    # initial target spacing
+    S = np.sqrt((avail_x * avail_y) / float(n_turbines))
+
+    # initial grid counts based on S
+    nx = nx or max(1, int(np.floor(avail_x / S)) + 1)
+    ny = ny or max(1, int(np.floor(avail_y / S)) + 1)
+
+    # ensure enough cells
+    while nx * ny < n_turbines:
+        # add to the longer-direction grid first
+        if (avail_x / nx) >= (avail_y / ny):
+            nx += 1
+        else:
+            ny += 1
+
+    # spacing from counts (handle nx/ny==1 case)
+    Sx = avail_x / (nx - 1) if nx > 1 else avail_x
+    Sy = avail_y / (ny - 1) if ny > 1 else avail_y
+    S = min(Sx, Sy)
+
+    # recompute counts to fit spacing S exactly
+    nx = max(1, int(np.floor(avail_x / S)) + 1)
+    ny = max(1, int(np.floor(avail_y / S)) + 1)
+
+    # center the grid
+    offset_x = margin + 0.5 * (avail_x - (nx - 1) * S)
+    offset_y = margin + 0.5 * (avail_y - (ny - 1) * S)
+    xs = offset_x + np.arange(nx) * S
+    ys = offset_y + np.arange(ny) * S
+
+    xv, yv = np.meshgrid(xs, ys)
+    positions = np.column_stack([xv.ravel(), yv.ravel()])
+
+    # greedy filter to respect min_spacing
+    filtered = []
+    for p in positions:
+        p = np.asarray(p)
+        if all(np.linalg.norm(p - np.asarray(q)) >= min_spacing for q in filtered):
+            filtered.append(p)
+        if len(filtered) >= n_turbines:
+            break
+    positions = np.array(filtered)[:n_turbines]
+
+    # optional quick plot for verification
+    if plot:
+        import matplotlib.pyplot as plt
+        plt.figure()
+        plt.triplot(mesh.coordinates()[:,0], mesh.coordinates()[:,1], mesh.cells(), alpha=0.1)
+
+        for pos in positions:
+            circ = plt.Circle((pos[0], pos[1]), D/2.0, color='r', alpha=0.5)
+            plt.gca().add_artist(circ)
+        plt.xlim(0, Lx); plt.ylim(0, Ly); plt.gca().set_aspect('equal', adjustable='box')
+        plt.title('Rectangular — equal spacing S={:.2f}'.format(S))
+        plt.show()
 
     return positions
