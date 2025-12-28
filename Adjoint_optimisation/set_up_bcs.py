@@ -87,3 +87,58 @@ def place_turbines_random2(mesh, Lx, Ly, n_turbines, min_spacing, D, type, seed=
 
 
     return np.array(positions)
+
+def place_turbines_rectangular(mesh, Lx, Ly, xn, yn, n_turbines, min_spacing, D, type, seed=None, margin=5*D):
+
+    # Calculate number of turbines in x and y directions
+    x = np.linspace(margin, Lx - margin, xn)
+    y = np.linspace(margin, Ly - margin, yn)
+    xv, yv = np.meshgrid(x, y)
+    positions = np.column_stack([xv.ravel(), yv.ravel()])[:n_turbines]
+
+
+    initial_positions = np.array(positions)
+
+    
+        #plotting initial turbine positions
+    plt.figure()    
+    plt.triplot(mesh.coordinates()[:,0], mesh.coordinates()[:,1], mesh.cells())
+    for pos in initial_positions:
+        circle = plt.Circle((pos[0], pos[1]), D, color='r', alpha=0.5)
+
+        plt.gca().add_artist(circle)            
+    plt.xlim(0, Lx)
+    plt.ylim(0, Ly) 
+    plt.title('Initial Turbine Positions (Rectangular Grid)')
+    plt.xlabel('x [m]')
+    plt.ylabel('y [m]')
+    plt.gca().set_aspect('equal', adjustable='box')
+    plt.show()
+
+
+    return np.array(positions)
+
+def place_turbines_rectangular2(mesh, Lx, Ly, xn, yn, n_turbines, min_spacing, D, type, seed=None, margin=5*D):
+    # Calculate number of turbines in x and y directions
+    x = np.linspace(margin, Lx - margin, xn)
+    y = np.linspace(margin, Ly - margin, yn)
+    xv, yv = np.meshgrid(x, y)
+    positions = np.column_stack([xv.ravel(), yv.ravel()])[:n_turbines]
+
+    initial_positions = positions.copy()  # Use copy() to avoid modifying original
+
+    # Plotting initial turbine positions
+    plt.figure()
+    plt.triplot(mesh.coordinates()[:,0], mesh.coordinates()[:,1], mesh.cells())
+    for pos in initial_positions:
+        circle = plt.Circle((pos[0], pos[1]), D/2, color='r', alpha=0.5)  # D/2 = radius
+        plt.gca().add_artist(circle)
+    plt.xlim(0, Lx)
+    plt.ylim(0, Ly)
+    plt.title('Initial Turbine Positions (Rectangular Grid)')
+    plt.xlabel('x [m]')
+    plt.ylabel('y [m]')
+    plt.gca().set_aspect('equal', adjustable='box')
+    plt.show()
+
+    return positions
