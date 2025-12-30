@@ -273,3 +273,22 @@ def build_ct_field_from_positions(positions, mesh, function_space, D=1.0, sigma=
             ct_field.vector().apply('insert')
 
     return ct_field
+
+
+def compute_blockage(positions, Lx, Ly, h, D, h_turbine=10, nbins=10):
+    bin_edges = np.linspace(0, Lx, nbins+1)
+    blockage_profile = np.zeros(nbins)
+
+    for i in range(nbins):
+        # Turbines in x-bin [bin_edges[i], bin_edges[i+1]]
+        in_bin = (positions[:,0] >= bin_edges[i]) & (positions[:,0] < bin_edges[i+1])
+        N_bin = np.sum(in_bin)
+    
+        blockage_profile[i] = (N_bin * D * h_turbine) / (Ly * h)
+
+    mean_blockage = np.mean(blockage_profile)
+    max_blockage = np.max(blockage_profile)
+
+    return blockage_profile, mean_blockage, max_blockage
+
+
