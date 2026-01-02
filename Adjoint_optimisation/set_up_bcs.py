@@ -56,30 +56,37 @@ def place_turbines_random2(mesh, Lx, Ly, n_turbines, min_spacing, D, seed=None, 
     if seed is not None:
         np.random.seed(seed)
 
-
+    # Optional additional inner margin (defaults to 0)
     if margin is None:
-        margin = max(min_spacing / 2, D)
+        margin = 0.0
+
+    # Enforce placement rectangle: x in [5*D, Lx-10*D], y in [2*D, Ly-2*D]
+    xmin = 5.0 * D + margin
+    xmax = Lx - 10.0 * D - margin
+    ymin = 2.0 * D + margin
+    ymax = Ly - 2.0 * D - margin
+
+    if xmax <= xmin or ymax <= ymin:
+        raise ValueError("Domain too small for requested placement bounds and margin")
 
     positions = []
     attempts = 0
 
     while len(positions) < n_turbines and attempts < max_attempts:
-        x = np.random.uniform(margin, Lx - margin)
-        y = np.random.uniform(margin, Ly - margin)
+        x = np.random.uniform(xmin, xmax)
+        y = np.random.uniform(ymin, ymax)
         new_pos = np.array([x, y])
 
         if all(np.linalg.norm(new_pos - np.array(pos)) >= min_spacing for pos in positions):
             positions.append(new_pos)
 
         attempts += 1
-    print("Managed to place ", len(positions), " turbines within ", attempts, " attempts.")
+    print(f"Managed to place {len(positions)} turbines within {attempts} attempts.")
 
     if len(positions) < n_turbines:
         raise RuntimeError("Failed to place all turbines with the given constraints.")
-    
-    else: 
+    else:
         print("Turbines placed successfully.")
-
 
     initial_positions = np.array(positions)
 
@@ -97,19 +104,13 @@ def place_turbines_random2(mesh, Lx, Ly, n_turbines, min_spacing, D, seed=None, 
     plot = True
 
     if plot:
-        plt.figure()    
+        plt.figure()
         plt.triplot(mesh.coordinates()[:,0], mesh.coordinates()[:,1], mesh.cells(),  alpha=0.1)
         for pos in initial_positions2:
-            circle = plt.Circle((pos[0], pos[1]), D*2, color='r', alpha=0.5)
-
-        plt.gca().add_artist(circle)            
+            circle = plt.Circle((pos[0], pos[1]), D/2.0, color='r', alpha=0.5)
+            plt.gca().add_artist(circle)
         plt.xlim(0, Lx)
-        plt.ylim(0, Ly) 
-        plt.title('Initial Turbine Positions')
-        plt.xlabel('x [m]')
-        plt.ylabel('y [m]')
-        plt.gca().set_aspect('equal', adjustable='box')
-        plt.show()
+        plt.ylim(0, Ly)
         plt.close()
 
     return np.array(positions)
@@ -122,12 +123,17 @@ def place_turbines_rectangular_equal_spacing(mesh, Lx, Ly, n_turbines,
                                              min_spacing, D,  plot=True,
                                              nx=None, ny=None,
                                              margin=None):
+    # Enforce placement rectangle [5*D, Lx-10*D] x [2*D, Ly-2*D]. Optional `margin` further shrinks the box.
     if margin is None:
-        margin = max(min_spacing / 2.0, D)
+        margin = 0.0
 
+    xmin = 5.0 * D + margin
+    xmax = Lx - 10.0 * D - margin
+    ymin = 2.0 * D + margin
+    ymax = Ly - 2.0 * D - margin
 
-    avail_x = Lx - 2.0 * margin
-    avail_y = Ly - 2.0 * margin
+    avail_x = xmax - xmin
+    avail_y = ymax - ymin
     if avail_x <= 0 or avail_y <= 0:
         raise ValueError("Domain too small for margins")
 
@@ -155,9 +161,9 @@ def place_turbines_rectangular_equal_spacing(mesh, Lx, Ly, n_turbines,
     nx = max(1, int(np.floor(avail_x / S)) + 1)
     ny = max(1, int(np.floor(avail_y / S)) + 1)
 
-    # center the grid
-    offset_x = margin + 0.5 * (avail_x - (nx - 1) * S)
-    offset_y = margin + 0.5 * (avail_y - (ny - 1) * S)
+    # center the grid inside the explicit box
+    offset_x = xmin + 0.5 * (avail_x - (nx - 1) * S)
+    offset_y = ymin + 0.5 * (avail_y - (ny - 1) * S)
     xs = offset_x + np.arange(nx) * S
     ys = offset_y + np.arange(ny) * S
 
@@ -200,10 +206,15 @@ def place_turbines_rectangular_min_spacing(mesh, Lx, Ly, min_spacing, D, margin=
     """
     plot = _coerce_bool(plot)
     if margin is None:
-        margin = max(min_spacing / 2.0, D)
+        margin = 0.0
 
-    avail_x = Lx - 2.0 * margin
-    avail_y = Ly - 2.0 * margin
+    xmin = 5.0 * D + margin
+    xmax = Lx - 10.0 * D - margin
+    ymin = 2.0 * D + margin
+    ymax = Ly - 2.0 * D - margin
+
+    avail_x = xmax - xmin
+    avail_y = ymax - ymin
     if avail_x <= 0 or avail_y <= 0:
         raise ValueError("Domain too small for margins")
 
@@ -218,8 +229,8 @@ def place_turbines_rectangular_min_spacing(mesh, Lx, Ly, min_spacing, D, margin=
     nx = max(1, int(np.floor(avail_x / S)) + 1)
     ny = max(1, int(np.floor(avail_y / S)) + 1)
 
-    offset_x = margin + 0.5 * (avail_x - (nx - 1) * S)
-    offset_y = margin + 0.5 * (avail_y - (ny - 1) * S)
+    offset_x = xmin + 0.5 * (avail_x - (nx - 1) * S)
+    offset_y = ymin + 0.5 * (avail_y - (ny - 1) * S)
     xs = offset_x + np.arange(nx) * S
     ys = offset_y + np.arange(ny) * S
 
@@ -290,5 +301,6 @@ def compute_blockage(positions, Lx, Ly, h, D, h_turbine=10, nbins=10):
     max_blockage = np.max(blockage_profile)
 
     return blockage_profile, mean_blockage, max_blockage
+
 
 
