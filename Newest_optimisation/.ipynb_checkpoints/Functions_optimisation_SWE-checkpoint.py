@@ -66,10 +66,10 @@ def setup_boundary_markers_and_bcs(mesh, W, Lx, Ly, U_inflow, noslip):
     print( "   - Outlet (ID=2): open boundary (no Dirichlet BC)")
 
     if noslip:
-        noslip      = dlf.Constant((0.0, 0.0))
-        bc_wall = dlf.DirichletBC(W.sub(0), noslip,      boundary_markers, 3)
+        noslip  = dlf.Constant((0.0, 0.0))
+        bc_wall = dlf.DirichletBC(W.sub(0), noslip, boundary_markers, 3)
         bcs = [bc_inflow, bc_wall]
-        print( "   - Walls  (ID=3): no‑slip (no Dirichlet BC)\n")
+        print( "   - Walls  (ID=3): no‑slip (Dirichlet BC)\n")
 
     else:
         bcs = [bc_inflow]
@@ -78,20 +78,14 @@ def setup_boundary_markers_and_bcs(mesh, W, Lx, Ly, U_inflow, noslip):
 
     return boundary_markers, bcs
 
-def place_turbines_random(mesh, Lx, Ly, n_turbines, min_spacing, D, seed=None, margin=None, max_attempts=100):
+def place_turbines_random(mesh, Lx, Ly, n_turbines, min_spacing, D, distance_from_inlet,
+distance_to_side, distance_to_outlet, seed=None, margin=None, max_attempts=100):
 
-    if seed is not None:
-        np.random.seed(seed)
-
-    # Optional additional inner margin (defaults to 0)
-    if margin is None:
-        margin = 0.0
-
-    # Enforce placement rectangle: x in [5*D, Lx-10*D], y in [2*D, Ly-2*D]
-    xmin = 5.0 * D + margin
-    xmax = Lx - 10.0 * D - margin
-    ymin = 2.0 * D + margin
-    ymax = Ly - 2.0 * D - margin
+    # Enforce placement rectangle
+    xmin = distance_from_inlet 
+    xmax = Lx - distance_to_outlet 
+    ymin = distance_to_side 
+    ymax = Ly - distance_to_side 
 
     if xmax <= xmin or ymax <= ymin:
         raise ValueError("Domain too small for requested placement bounds and margin")
