@@ -15,7 +15,7 @@ from Dolfin_optimisation.src.turbines import (
 )
 
 
-def setup_swe_problem(Lx, Ly, Nx, Ny, U_inflow, showplot):
+def setup_swe_problem(Lx, Ly, Nx, Ny, c, showplot):
     # --- Domain and mesh setup ---
     mesh = RectangleMesh(Point(0.0, 0.0), Point(Lx, Ly), Nx, Ny)
 

@@ -15,7 +15,7 @@ from ufl import *  # Import ALL UFL operators explicitly
 from ufl import dot, div, grad, nabla_grad, sqrt, inner, derivative, Measure
 from ufl import exp
 
-def mesh_set_up(Lx, Ly, Nx, Ny, showplot):
+def mesh_set_up(Lx, Ly, Nx, Ny, showplot, U_inflow):
     mesh_dolfin = dlf.RectangleMesh(dlf.Point(0.0, 0.0),
                                     dlf.Point(Lx, Ly),
                                     Nx, Ny)
@@ -30,6 +30,11 @@ def mesh_set_up(Lx, Ly, Nx, Ny, showplot):
     u, eta = dlf.split(w)
     v, q   = dlf.TestFunctions(W)   
     print("Mesh and mixed space initialised.")
+
+    V_sub = W.sub(0).collapse()
+    u_init = interpolate(Constant((U_inflow, 0.0)), V_sub)
+    assign(w.sub(0), u_init)
+
 
     if showplot:
         plt.figure(figsize=(6,5))
@@ -152,6 +157,7 @@ def solve_tidal_flow_velocities(turbine_positions, w, W, mesh, bcs, rho, depth, 
 
     # --- Turbine-induced momentum sink coefficient field ------------------
     x, y = dlf.SpatialCoordinate(mesh)
+    f_u = Constant((0, 0))
 
     Ct_field = 0
     for (x_i, y_i) in turbine_positions:
