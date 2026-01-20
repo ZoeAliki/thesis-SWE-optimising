@@ -4,7 +4,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
 import dolfin as dlf
-
+from dolfin import (
+    Constant, Function, FunctionSpace, VectorFunctionSpace, 
+    TestFunctions, TrialFunctions, Expression, interpolate, assign, exp
+)
+import ufl
+from ufl import dot, div, grad, nabla_grad, sqrt, inner, derivative, Measure
 
 def mesh_set_up(Lx, Ly, Nx, Ny, showplot):
     mesh_dolfin = dlf.RectangleMesh(dlf.Point(0.0, 0.0),
@@ -33,7 +38,7 @@ def mesh_set_up(Lx, Ly, Nx, Ny, showplot):
 
     return mesh_dolfin, W, w, u, eta, v, q
 
-def setup_boundary_markers_and_bcs(mesh, W, Lx, Ly, U_inflow):
+def setup_boundary_markers_and_bcs(mesh, W, Lx, Ly, U_inflow, noslip):
 
     # --- Define boundary subdomains ---
     class InletBoundary(dlf.SubDomain):
@@ -54,16 +59,22 @@ def setup_boundary_markers_and_bcs(mesh, W, Lx, Ly, U_inflow):
     outlet = OutflowBoundary(); outlet.mark(boundary_markers, 2)
     walls  = WallBoundary();   walls.mark(boundary_markers, 3)
 
-    # --- Define velocity BC (inlet only) ---
     inflow_expr = dlf.Constant((U_inflow, 0.0))
     bc_inflow = dlf.DirichletBC(W.sub(0), inflow_expr, boundary_markers, 1)
-
-    bcs = [bc_inflow]
-
     print(f"Boundary markers created and BCs applied:")
     print(f"   - Inlet  (ID=1): inflow velocity = {U_inflow:.2f} m/s")
     print( "   - Outlet (ID=2): open boundary (no Dirichlet BC)")
-    print( "   - Walls  (ID=3): free‑slip (no Dirichlet BC)\n")
+
+    if noslip:
+        noslip      = dlf.Constant((0.0, 0.0))
+        bc_wall = dlf.DirichletBC(W.sub(0), noslip,      boundary_markers, 3)
+        bcs = [bc_inflow, bc_wall]
+        print( "   - Walls  (ID=3): no‑slip (no Dirichlet BC)\n")
+
+    else:
+        bcs = [bc_inflow]
+        print( "   - Walls  (ID=3): free‑slip (no Dirichlet BC)\n")
+    
 
     return boundary_markers, bcs
 
@@ -132,3 +143,60 @@ def show_turbine_positions(initial_positions, showcoordinates):
     else:
         print("Turbine coordinates display not requested.")
     return
+
+
+
+def solve_tidal_flow_velocities_new(turbine_positions, w, W, mesh, bcs, rho, depth, nu, cb, g, C_T, A_T, sigma, u, eta, v, q):
+    
+    n = dlf.FacetNormal(mesh)
+    H = depth + eta            # total water depth
+    f_u = dlf.Constant((0.0, 0.0))   # no internal body forcing
+
+    # --- Turbine-induced momentum sink coefficient field ------------------
+    x, y = dlf.SpatialCoordinate(mesh)
+
+    Ct_field = 0
+    for (x_i, y_i) in turbine_positions:
+        Ct_field += (
+            0.5 * C_T * A_T / (2.0 * np.pi * sigma**2)
+            * exp(-((x - x_i)**2 + (y - y_i)**2) / (2.0 * sigma**2))
+        )
+
+    # --- Nonlinear residual form F ----------------------------------------
+    F = (
+        inner(nu * grad(u), grad(v)) * dx                            # viscosity
+        + inner(dot(u, nabla_grad(u)), v) * dx                      # advection
+        - g * div(H * v) * eta * dx                                  # free-surface coupling
+        + (cb / H) * inner(u * sqrt(dot(u, u)), v) * dx           # bottom friction
+    )
+
+    # Turbine momentum sink using spatially varying field
+    F += (Ct_field / H) * inner(u * sqrt(dot(u, u)), v) * dx
+
+    # Continuity and body force term
+    F += H * div(u) * q * dx - inner(f_u, v) * dx
+
+    # --- Solve nonlinear problem with Newton's method ---------------------
+    solve(
+        F == 0,
+        w,
+        bcs,
+        solver_parameters={
+            "newton_solver": {
+                "linear_solver": "mumps",
+                "absolute_tolerance": 1e-8,
+                "relative_tolerance": 1e-7,
+                "maximum_iterations": 30,
+                "relaxation_parameter": 1.0,
+            }
+        },
+    )
+
+    velocity = w.sub(0, deepcopy=True)
+    #turbine_powers, _ = compute_turbine_power(
+        #velocity, turbine_positions, rho, C_T, A_T
+    #)
+    #total_power = float(np.sum(turbine_powers))
+    #print(f"The total power is {total_power/1e3:.1f} kW")
+
+    return velocity
