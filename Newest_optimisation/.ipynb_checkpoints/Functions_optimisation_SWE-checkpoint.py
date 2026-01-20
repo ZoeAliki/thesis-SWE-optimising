@@ -4,12 +4,16 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
 import dolfin as dlf
+
+
 from dolfin import (
     Constant, Function, FunctionSpace, VectorFunctionSpace, 
     TestFunctions, TrialFunctions, Expression, interpolate, assign, exp
 )
 import ufl
+from ufl import *  # Import ALL UFL operators explicitly
 from ufl import dot, div, grad, nabla_grad, sqrt, inner, derivative, Measure
+from ufl import exp
 
 def mesh_set_up(Lx, Ly, Nx, Ny, showplot):
     mesh_dolfin = dlf.RectangleMesh(dlf.Point(0.0, 0.0),
@@ -65,15 +69,15 @@ def setup_boundary_markers_and_bcs(mesh, W, Lx, Ly, U_inflow, noslip):
     print(f"   - Inlet  (ID=1): inflow velocity = {U_inflow:.2f} m/s")
     print( "   - Outlet (ID=2): open boundary (no Dirichlet BC)")
 
-    if noslip:
-        noslip  = dlf.Constant((0.0, 0.0))
-        bc_wall = dlf.DirichletBC(W.sub(0), noslip, boundary_markers, 3)
-        bcs = [bc_inflow, bc_wall]
-        print( "   - Walls  (ID=3): no‑slip (Dirichlet BC)\n")
+    #if noslip:
+    #    noslip  = dlf.Constant((0.0, 0.0))
+    #    bc_wall = dlf.DirichletBC(W.sub(0), noslip, boundary_markers, 3)
+    #    bcs = [bc_inflow, bc_wall]
+    #    print( "   - Walls  (ID=3): no‑slip (Dirichlet BC)\n")
 
-    else:
-        bcs = [bc_inflow]
-        print( "   - Walls  (ID=3): free‑slip (no Dirichlet BC)\n")
+    #else:
+    bcs = [bc_inflow]
+    print( "   - Walls  (ID=3): free‑slip (no Dirichlet BC)\n")
     
 
     return boundary_markers, bcs
@@ -140,7 +144,7 @@ def show_turbine_positions(initial_positions, showcoordinates):
 
 
 
-def solve_tidal_flow_velocities_new(turbine_positions, w, W, mesh, bcs, rho, depth, nu, cb, g, C_T, A_T, sigma, u, eta, v, q):
+def solve_tidal_flow_velocities(turbine_positions, w, W, mesh, bcs, rho, depth, nu, cb, g, C_T, A_T, sigma, u, eta, v, q):
     
     n = dlf.FacetNormal(mesh)
     H = depth + eta            # total water depth
@@ -158,20 +162,20 @@ def solve_tidal_flow_velocities_new(turbine_positions, w, W, mesh, bcs, rho, dep
 
     # --- Nonlinear residual form F ----------------------------------------
     F = (
-        inner(nu * grad(u), grad(v)) * dx                            # viscosity
-        + inner(dot(u, nabla_grad(u)), v) * dx                      # advection
-        - g * div(H * v) * eta * dx                                  # free-surface coupling
-        + (cb / H) * inner(u * sqrt(dot(u, u)), v) * dx           # bottom friction
+        dlf.inner(nu * grad(u), grad(v)) * dlf.dx                            # viscosity
+        + dlf.inner(dot(u, nabla_grad(u)), v) * dlf.dx                      # advection
+        - g * dlf.div(H * v) * eta * dlf.dx                                  # free-surface coupling
+        + (cb / H) * dlf.inner(u * sqrt(dot(u, u)), v) * dlf.dx           # bottom friction
     )
 
     # Turbine momentum sink using spatially varying field
-    F += (Ct_field / H) * inner(u * sqrt(dot(u, u)), v) * dx
+#    F += (Ct_field / H) * dlf.inner(u * sqrt(dot(u, u)), v) * dlf.dx
 
     # Continuity and body force term
-    F += H * div(u) * q * dx - inner(f_u, v) * dx
+    F += H * dlf.div(u) * q * dlf.dx - dlf.inner(f_u, v) * dlf.dx
 
     # --- Solve nonlinear problem with Newton's method ---------------------
-    solve(
+    dlf.solve(
         F == 0,
         w,
         bcs,
@@ -194,3 +198,103 @@ def solve_tidal_flow_velocities_new(turbine_positions, w, W, mesh, bcs, rho, dep
     #print(f"The total power is {total_power/1e3:.1f} kW")
 
     return velocity
+
+
+import dolfin as dlf
+import numpy as np
+from ufl import grad, div, dot, nabla_grad, sqrt, exp
+
+def solve_tidal_flow_velocities2(
+    turbine_positions,
+    w, W, mesh, bcs,
+    depth, nu, cb, g, C_T, A_T, sigma
+):
+
+    u, eta = dlf.split(w)
+    v, q   = dlf.TestFunctions(W)
+    
+    n = dlf.FacetNormal(mesh)
+    H = depth + eta                     # total water depth
+    eps_H = 1e-6                        # small floor to avoid division by 0
+    Hsafe = H + eps_H
+    f_u = dlf.Constant((0.0, 0.0))      # no internal body forcing
+
+    # --- Turbine-induced momentum sink coefficient field ---
+    x, y = dlf.SpatialCoordinate(mesh)
+
+    Ct_field = 0
+    for (x_i, y_i) in turbine_positions:
+        Ct_field += (
+            0.5 * C_T * A_T / (2.0 * np.pi * sigma**2)
+            * exp(-((x - x_i)**2 + (y - y_i)**2) / (2.0 * sigma**2))
+        )
+
+    # --- Nonlinear residual form F ---
+    F = (dlf.inner(nu * dlf.grad(u), dlf.grad(v)) * dlf.dx
+    + dlf.inner(dot(u, nabla_grad(u)), v) * dlf.dx
+    - g * dlf.div(H * v) * eta * dlf.dx
+    + (cb / H) * dlf.inner(u * sqrt(dot(u, u)), v) * dlf.dx
+    + H * dlf.div(u) * q * dlf.dx - dlf.inner(f_u, v) * dlf.dx)
+
+
+    # Turbine momentum sink using spatially varying field
+    F += (Ct_field / Hsafe) * dlf.inner(u * sqrt(dot(u, u)), v) * dlf.dx
+
+    # Continuity and body force term
+    F += H * div(u) * q * dlf.dx - dlf.inner(f_u, v) * dlf.dx
+        # Jacobian of F with respect to w
+   # J_F = dlf.derivative(F, w)
+
+    #problem = dlf.NonlinearVariationalProblem(F, w, bcs, J_F)
+    #solver  = dlf.NonlinearVariationalSolver(problem)
+
+    dlf.solve(
+        F == 0,
+        w,
+        bcs,
+        solver_parameters={
+            "newton_solver": {
+                "linear_solver": "mumps",
+                "absolute_tolerance": 1e-8,
+                "relative_tolerance": 1e-7,
+                "maximum_iterations": 30,
+                "relaxation_parameter": 1.0,
+            }
+        },
+    )
+    # --- Solve nonlinear problem with Newton's method ---
+
+    velocity = w.sub(0, deepcopy=True)
+    return velocity
+
+
+def solve_tidal_flow_velocities3(turbine_positions, w, W, mesh, bcs, depth, nu, cb, g, C_T, A_T, sigma):
+    u, eta = split(w)
+    v, q = TestFunctions(W)
+    
+    n = FacetNormal(mesh)
+    H = depth + eta
+    f_u = Constant((0.0, 0.0))
+
+    # Turbine field
+    x, y = SpatialCoordinate(mesh)
+    Ct_field = 0
+    for (x_i, y_i) in turbine_positions:
+        Ct_field += (0.5 * C_T * A_T / (2.0 * np.pi * sigma**2)
+                    * exp(-((x - x_i)**2 + (y - y_i)**2) / (2.0 * sigma**2)))
+
+    # Residual F - ALL BARE UFL OPERATORS
+    F = (inner(nu * grad(u), grad(v)) * dx
+        + inner(dot(u, nabla_grad(u)), v) * dx
+        - g * div(H * v) * eta * dx
+        + (cb / H) * inner(u * sqrt(dot(u, u)), v) * dx
+        + H * div(u) * q * dx - inner(f_u, v) * dx)
+
+    solve(F == 0, w, bcs, 
+          solver_parameters={"newton_solver": {
+              "linear_solver": "mumps",
+              "absolute_tolerance": 1e-8, 
+              "relative_tolerance": 1e-7,
+              "maximum_iterations": 30}})
+
+    return w.sub(0, deepcopy=True)
